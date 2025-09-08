@@ -13,18 +13,14 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCase do
   @spec enrich_with_accs(map(), map(), map()) :: map()
   def enrich_with_accs(typed_input, field_defs, raw_input) when is_map(field_defs) do
     Enum.reduce(field_defs, typed_input, fn
-      # 1) acc_ref (como hoy)
-      {field, %{"acc_ref" => ar}}, acc_map ->
-        Map.put(acc_map, field, read_acc_float(ar, raw_input))
-
-      # 2) ratio = num/den (ambos acc_ref); soporta "default" si den=0
+      # 1) ratio = num/den (ambos acc_ref); soporta "default" si den=0
       {field, %{"compute" => "ratio", "num" => n, "den" => d} = spec}, acc_map ->
         num = read_acc_float(n["acc_ref"], raw_input)
         den = read_acc_float(d["acc_ref"], raw_input)
         default = Map.get(spec, "default", 0.0)
         Map.put(acc_map, field, if(den == 0.0, do: default, else: num / den))
 
-      # 3) rate = sum(window) / duración (per: "second"|"minute"|"hour"|"day")
+      # 2) rate = sum(window) / duración (per: "second"|"minute"|"hour"|"day")
       {field, %{"compute" => "rate", "acc_ref" => ar} = spec}, acc_map ->
         per =
           spec
@@ -39,15 +35,14 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCase do
 
         Map.put(acc_map, field, to_float(dec))
 
-      # 4) extreme: max/min en la ventana
+      # 3) extreme: max/min en la ventana
       {field, %{"compute" => "extreme", "op" => op, "acc_ref" => ar}}, acc_map ->
-        fun =
-          if op == "min", do: &@accumulators_query_repository.read_min/3, else: &Acc.read_max/3
+        fun = if op == "min", do: &@accumulators_query_repository.read_min/3, else: &@accumulators_query_repository.read_max/3
 
         dec = fun.(ar["name"], key_from(ar, raw_input), %{window: Map.get(ar, "window", "7d")})
         Map.put(acc_map, field, to_float(dec))
 
-      # 5) time_since_last: segundos desde el último evento; si no hay, valor grande por defecto
+      # 4) time_since_last: segundos desde el último evento; si no hay, valor grande por defecto
       {field, %{"compute" => "time_since_last", "acc_ref" => ar} = spec}, acc_map ->
         default = Map.get(spec, "default", 9_223_372_036_854_775_807)
 
@@ -62,6 +57,10 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCase do
           end
 
         Map.put(acc_map, field, val)
+
+      # 5) acc_ref (como hoy)
+      {field, %{"acc_ref" => ar}}, acc_map ->
+        Map.put(acc_map, field, read_acc_float(ar, raw_input))
 
       _other, acc_map ->
         acc_map

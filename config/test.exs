@@ -30,8 +30,10 @@ config :ms_evaluate_rules,
 
 # Para pruebas que usan AccumulatorUseCase (compile_env)
 config :ms_evaluate_rules,
-  accumulators_repository:
-    MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.AccumulatorsRepository
+  rules_repository: MsEvaluateRules.Infrastructure.Adapters.Repository.Query.QueryManagerRepository,
+  accumulators_query_repository: MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.AccumulatorsQueryRepository,
+  accumulators_command_repository: MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.AccumulatorsCommandRepository
+
 
 config :junit_formatter,
   report_dir: "_build/release",

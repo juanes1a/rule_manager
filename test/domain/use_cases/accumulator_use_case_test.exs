@@ -4,7 +4,7 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCaseTest do
   import Mock
 
   alias MsEvaluateRules.Domain.UseCases.AccumulatorUseCase
-  alias MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.AccumulatorsRepository
+  alias MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.AccumulatorsQueryRepository
 
   describe "enrich_with_accs/3" do
     test "injects fields from accumulators with Decimal converted to float" do
@@ -15,7 +15,7 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCaseTest do
       typed_input = %{"user_id" => 10}
       raw_input = %{"user_id" => 10}
 
-      with_mock AccumulatorsRepository, [read: fn "login_events", %{"user_id" => 10}, %{window: "7d"} -> Decimal.new(5) end] do
+      with_mock AccumulatorsQueryRepository, [read: fn "login_events", %{"user_id" => 10}, %{window: "7d"} -> Decimal.new(5) end] do
         enriched = AccumulatorUseCase.enrich_with_accs(typed_input, field_defs, raw_input)
         assert enriched["acc_score"] == 5.0
       end
@@ -29,11 +29,10 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCaseTest do
       typed_input = %{"user_id" => 1, "country" => "CO"}
       raw_input = typed_input
 
-      with_mock AccumulatorsRepository, [read: fn _, _, _ -> raise "boom" end] do
+      with_mock AccumulatorsQueryRepository, [read: fn _, _, _ -> raise "boom" end] do
         enriched = AccumulatorUseCase.enrich_with_accs(typed_input, field_defs, raw_input)
         assert enriched["acc_total"] == 0.0
       end
     end
   end
 end
-

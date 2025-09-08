@@ -36,7 +36,8 @@ defmodule MsEvaluateRules.Domain.UseCases.TypicalCoercionUtil do
   defp try_parse_number(_), do: {:error, :nan}
 
   def to_dec(%D{} = d), do: {:ok, d}
-  def to_dec(v) when is_integer(v) or is_float(v), do: {:ok, D.new(v)}
+  def to_dec(v) when is_integer(v), do: {:ok, D.new(v)}
+  def to_dec(v) when is_float(v), do: {:ok, D.from_float(v)}
 
   def to_dec(v) when is_binary(v) do
     case(D.new(v)) do

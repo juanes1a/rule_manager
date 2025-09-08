@@ -14,7 +14,8 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Repository.RuleSetDataTest do
     refute cs.valid?
     assert Keyword.has_key?(cs.errors, :signature_id)
     assert Keyword.has_key?(cs.errors, :version)
-    assert Keyword.has_key?(cs.errors, :status)
+    # status has default :draft, so it is present even if not provided
+    refute Keyword.has_key?(cs.errors, :status)
   end
 
   test "invalid status value" do
@@ -22,4 +23,3 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Repository.RuleSetDataTest do
     refute cs.valid?
   end
 end
-

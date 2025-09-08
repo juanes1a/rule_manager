@@ -85,7 +85,7 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.Accumu
     test "keeps only defined dimensions in order" do
       map = %{"a" => 1, "b" => 2, "c" => 3}
       dims = ["b", "c"]
-      assert H.normalize_key(map, dims) == %{"b" => 2, "c" => 3}
+      assert {:ok, %{"b" => 2, "c" => 3}} = H.normalize_key(map, dims)
     end
   end
 end

@@ -39,4 +39,33 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Secrets.SecretManagerAdapterTe
 
     assert {:error, :no_secret_found} = SecretManagerAdapter.get_secret()
   end
+
+  test "init(true) and handle_info(:get_secret, _) store local config into ETS in non-prod" do
+    config = %AppConfig{env: :test, secret_name: "name", enable_server: false}
+    :ets.insert(:ms_evaluate_rules_config, {:config, config})
+
+    assert {:ok, nil} = SecretManagerAdapter.init(true)
+
+    # After handle_info, ETS should contain the secret config
+    assert {:noreply, _} = SecretManagerAdapter.handle_info(:get_secret, nil)
+    assert SecretManagerAdapter.get_secret() == config
+  end
+
+  test "start_link/1 initializes ETS and stores secret on non-prod env" do
+    config = %AppConfig{env: :test, secret_name: "name", enable_server: false}
+    :ets.insert(:ms_evaluate_rules_config, {:config, config})
+
+    assert {:ok, pid} = SecretManagerAdapter.start_link(false)
+    assert Process.alive?(pid)
+    # Should have inserted secret immediately in init(false)
+    assert SecretManagerAdapter.get_secret() == config
+  end
+
+  test "start_link/1 with async true starts process" do
+    config = %AppConfig{env: :test, secret_name: "name", enable_server: false}
+    :ets.insert(:ms_evaluate_rules_config, {:config, config})
+
+    assert {:ok, pid} = SecretManagerAdapter.start_link(true)
+    assert Process.alive?(pid)
+  end
 end

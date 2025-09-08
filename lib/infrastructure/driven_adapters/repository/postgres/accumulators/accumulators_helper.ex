@@ -37,24 +37,7 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.Accumu
 
   def truncate_to_gran(%NaiveDateTime{} = ts, _), do: ts
 
-  def shift_window(%DateTime{} = now, window) do
-    case Regex.run(~r/^(\d+)([mhd])$/, window) do
-      [_, n, unit] ->
-        n = String.to_integer(n)
-
-        secs =
-          case unit do
-            "m" -> 60
-            "h" -> 3600
-            "d" -> 86400
-          end
-
-        {:ok, DateTime.add(now, -n * secs, :second)}
-
-      _ ->
-        {:error, :bad_window}
-    end
-  end
+  # (reemplazado por la versión robusta más abajo)
 
   def normalize_key(map, dims) do
     {

@@ -49,7 +49,7 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.Accumu
     # Decimal
     s = read(name, key, %{window: w})
     # entero (segundos)
-    secs = window_from_now(w)
+    secs = window_seconds(w)
     # 1/60/3600/86400
     base = per_to_base(per)
 
