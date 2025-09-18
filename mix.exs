@@ -6,7 +6,7 @@ defmodule MsEvaluateRules.MixProject do
       app: :ms_evaluate_rules,
       version: "0.1.0",
       elixir: "~> 1.13",
-      start_permanent: Mix.env() == :dev,
+      start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
@@ -47,6 +47,8 @@ defmodule MsEvaluateRules.MixProject do
       {:hackney, "~> 1.25"},
       {:ex_aws_sts, "~> 2.3"},
       {:ex_aws_secretsmanager, "~> 2.0"},
+      {:ex_aws, "~> 2.4"},
+      {:ex_aws_dynamo, "~> 4.0"},
       {:postgrex, "~> 0.21"},
       {:ecto_sql, "~> 3.13"},
       {:castore, "~> 1.0"},

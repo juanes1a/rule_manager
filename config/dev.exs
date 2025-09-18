@@ -29,21 +29,23 @@ MsEvaluateRules.Infrastructure.Adapters.Repository.Repo,
   telemetry_prefix: [:elixir, :repo],
   after_connect: {Postgrex, :query!, query_args}
 
+config :ex_aws, :dynamodb,
+  scheme: "http://",
+  host: "localhost",
+  port: 8000
+
 config :ms_evaluate_rules,
   rules_repository: MsEvaluateRules.Infrastructure.Adapters.Repository.Query.QueryManagerRepository,
   accumulators_query_repository: MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.AccumulatorsQueryRepository,
+  bucket_query_repository: MsEvaluateRules.Infrastructure.Adapters.Dynamo.BucketQueryRepository,
   accumulators_command_repository: MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.AccumulatorsCommandRepository
 
 # aws
 config :ex_aws,
+  json_codec: Jason,
   region: "us-east-1",
-  access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, {:awscli, "default", 30}, :instance_role],
-  secret_access_key: [
-    {:system, "AWS_SECRET_ACCESS_KEY"},
-    {:awscli, "default", 30},
-    :instance_role
-  ],
-  awscli_auth_adapter: ExAws.STS.AuthCache.AssumeRoleCredentialsAdapter
+  access_key_id: "dummy",
+  secret_access_key: "dummy"
 
 # to override aws endpoint for localstack
 # config :ex_aws, :secretsmanager, # change for specific service

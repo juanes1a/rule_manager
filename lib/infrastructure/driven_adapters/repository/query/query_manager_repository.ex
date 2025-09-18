@@ -30,7 +30,6 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Repository.Query.QueryManagerR
         select: %{signature: s, ruleset: rs, rule: r}
 
     rows = Repo.all(query)
-
     case rows do
       [] ->
         {:error, :not_found}

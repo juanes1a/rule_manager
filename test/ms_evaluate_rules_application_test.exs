@@ -7,6 +7,12 @@ defmodule MsEvaluateRules.ApplicationTest do
     assert MsEvaluateRules.Application.env_children(:test, %AppConfig{}) == []
   end
 
+  test "env_children/2 returns secrets and repo on non-test env" do
+    children = MsEvaluateRules.Application.env_children(:dev, %AppConfig{})
+    assert Enum.any?(children, fn {mod, _} -> mod == MsEvaluateRules.Infrastructure.Adapters.Secrets.SecretManagerAdapter end)
+    assert Enum.any?(children, fn {mod, _} -> mod == MsEvaluateRules.Infrastructure.Adapters.Repository.Repo end)
+  end
+
   setup do
     if :ets.info(:ms_evaluate_rules_config) == :undefined do
       :ets.new(:ms_evaluate_rules_config, [:public, :named_table, read_concurrency: true])

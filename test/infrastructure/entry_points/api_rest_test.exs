@@ -2,7 +2,9 @@ defmodule MsEvaluateRules.Infrastructure.EntryPoint.ApiRestTets do
   alias MsEvaluateRules.Infrastructure.EntryPoint.ApiRest
 
   use ExUnit.Case
-  use Plug.Test
+  import Plug.Test
+  import Plug.Conn
+  import Mock
 
   @opts ApiRest.init([])
 
@@ -25,6 +27,20 @@ defmodule MsEvaluateRules.Infrastructure.EntryPoint.ApiRestTets do
 
     assert conn.state == :sent
     assert conn.status == 200
+  end
+
+  test "POST /api/evaluate happy path" do
+    body = %{"a" => 1}
+    conn = Plug.Test.conn(:post, "/api/evaluate?application=app&signature=sig", Jason.encode!(body))
+           |> put_req_header("content-type", "application/json")
+
+    with_mock MsEvaluateRules.Domain.UseCases.EvaluatorUseCase, [
+      evaluate: fn "app", "sig", ^body -> {:ok, %{ok: true}} end
+    ] do
+      conn = ApiRest.call(conn, @opts)
+      assert conn.status == 200
+      assert Poison.decode!(conn.resp_body) == %{"ok" => true}
+    end
   end
 
   test "put_resp_content_type/2" do

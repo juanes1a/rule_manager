@@ -1,0 +1,28 @@
+ARG IMAGE
+
+FROM $IMAGE
+# Cuando requiere dependencias desde un repositorio de azure devops
+# ARG AZURE_ACCESS_TOKEN
+RUN apk add build-base git
+WORKDIR /app
+# To generate mix cache
+RUN mix local.hex --force \
+    && mix local.rebar --force
+COPY mix.* .
+# caché de dependencias descargada si existe (esto lo descarga automaticamente la tarea `elixir-build`)
+COPY cache ./cache/
+# Cuando requiere dependencias desde un repositorio de azure devops
+# RUN git config --global http.extraheader "AUTHORIZATION: bearer $AZURE_ACCESS_TOKEN"
+# To use cache or download and generate compiled deps cache
+RUN $WORKDIR/elixir_cache.sh
+# Ensure use of .dockerignore file to avoid copying unnecessary files
+COPY . .
+# To run tests and generate reports from static code analysis (credo, sobelow)
+RUN mix ca.release --skiprelease
+
+USER appuser
+
+CMD while true; do \
+        echo "This is an infinite loop until files are copied and container destroyed."; \
+        sleep 5; \
+    done

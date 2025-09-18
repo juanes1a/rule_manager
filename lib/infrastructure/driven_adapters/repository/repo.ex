@@ -29,12 +29,12 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Repository.Repo do
 
   def health() do
     try do
-      case SQL.query(__MODULE__, "select 1", []) do
+      case Postgrex.query(__MODULE__, "select 1", []) do
         {:ok, _res} -> {:ok, true}
         _error -> :error
       end
     rescue
-      ConnectionError -> :error
+      DBConnection.ConnectionError -> :error
     end
   end
 end

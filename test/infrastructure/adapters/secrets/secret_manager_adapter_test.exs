@@ -1,5 +1,6 @@
 defmodule MsEvaluateRules.Infrastructure.Adapters.Secrets.SecretManagerAdapterTest do
   use ExUnit.Case, async: false
+  import Mock
 
   alias MsEvaluateRules.Infrastructure.Adapters.Secrets.SecretManagerAdapter
   alias MsEvaluateRules.Config.AppConfig
@@ -59,6 +60,7 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Secrets.SecretManagerAdapterTe
     assert Process.alive?(pid)
     # Should have inserted secret immediately in init(false)
     assert SecretManagerAdapter.get_secret() == config
+    GenServer.stop(pid)
   end
 
   test "start_link/1 with async true starts process" do
@@ -67,5 +69,7 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Secrets.SecretManagerAdapterTe
 
     assert {:ok, pid} = SecretManagerAdapter.start_link(true)
     assert Process.alive?(pid)
+    GenServer.stop(pid)
   end
+
 end

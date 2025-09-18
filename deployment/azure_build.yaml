@@ -1,0 +1,100 @@
+name: $(Build.SourceBranchName).$(date:yyyyMMdd)$(rev:.r)
+
+variables:
+  - name: componentName
+    value: 'ms_rule_manager_evaluator'
+  - name: artifactory.RepositoryPath
+    value: 'build-$(Build.Repository.Name)'
+  - name: artifactory.fullNameComponent
+    value: '$(Build.Repository.Name)_$(componentName)'
+  - group: 'base_images'
+  
+resources:
+  - repo: self
+    clean: true
+
+trigger:
+  branches:
+    include:
+      - master
+      - trunk
+      - main
+      - feature/*
+  paths:
+    include:
+      - 'ms_rule_manager_evaluator/*'
+
+stages:
+
+- stage: CI
+  jobs:
+  - job: build
+    displayName: 'Build'
+    pool:
+      name: Build
+      demands:
+        - Agent.OS -equals Linux
+    steps:
+      - task: SonarQubePrepare@6
+        displayName: 'Prepare analysis on SonarQube'
+        inputs:
+          SonarQube: SonarQube
+          scannerMode: CLI
+          configMode: manual
+          cliProjectKey: '$(Build.Repository.Name)_$(componentName)'
+          cliProjectName: '$(Build.Repository.Name)_$(componentName)'
+          cliProjectVersion: '$(Build.BuildNumber)'
+          cliSources: '.'
+          extraProperties: |
+            sonar.sources=$(componentName)/lib/
+            sonar.tests=$(componentName)/test/
+            sonar.exclusions=**/_build
+            sonar.externalIssuesReportPaths=$(componentName)/_build/release/credo_sonarqube.json,$(componentName)/_build/release/sobelow_sonarqube.json
+            sonar.coverageReportPaths=$(componentName)/_build/release/excoveralls.xml
+            sonar.testExecutionReportPaths=$(componentName)/_build/release/generic_test_execution_sonarqube.xml
+
+      - task: elixir-build@1
+        inputs:
+          type: "build"
+          workingDirectory: "$(componentName)"
+          dockerImage: "$(elixir_1.17_alpine)"
+          dockerfile: "deployment/Dockerfile-build"
+          dockerBuildArgs: ''
+          aditionalArtifactResources: 'deployment/* config lib mix.exs mix.lock'
+          compressSource: false
+          cacheDependencies: true
+          artifactoryConnection: "Artifactory"
+      
+      - task: AmazonWebServices.aws-vsts-tools.S3Upload.S3Upload@1
+        displayName: 'Publish Test Result to S3'
+        inputs:
+          awsCredentials: 'bancolombia-ingenieriati-pdn-app-aws'
+          regionName: 'us-east-1'
+          bucketName: 'nu0244001-ingswpracticas-reportes-genericos-pdn'
+          sourceFolder: '$(System.DefaultWorkingDirectory)/$(projectPath)/_build/release'
+          targetFolder: '$(Build.Repository.Name)_$(componentName)'
+          globExpressions: 'sobelow.json'
+
+      - task: SonarQubeAnalyze@6
+        displayName: 'Run Code Analysis'
+
+      - task: Sonar-buildbreaker@8
+        displayName: 'Break Build on Quality Gate Failure'
+        inputs:
+          SonarQube: SonarQube
+
+      - task: PublishTestResults@2
+        displayName: "Publish Test Results"
+        inputs:
+          testResultsFormat: "JUnit"
+          testResultsFiles: 'test-junit-report.xml'
+          searchFolder: '$(System.DefaultWorkingDirectory)/$(componentName)/_build/release/'
+          mergeTestResults: true
+
+      - task: PublishBuildArtifacts@1
+        displayName: 'Publish Artifact'
+        inputs:
+          PathtoPublish: '$(System.DefaultWorkingDirectory)/$(componentName)/_build/release/artifact/'
+          ArtifactName: '_artifact'
+          publishLocation: 'Container'
+        condition: and(succeeded(), eq(variables['Build.SourceBranch'],'refs/heads/trunk'))

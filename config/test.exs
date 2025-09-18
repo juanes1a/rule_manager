@@ -32,19 +32,17 @@ config :ms_evaluate_rules,
 config :ms_evaluate_rules,
   rules_repository: MsEvaluateRules.Infrastructure.Adapters.Repository.Query.QueryManagerRepository,
   accumulators_query_repository: MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.AccumulatorsQueryRepository,
+  bucket_query_repository: MsEvaluateRules.Infrastructure.Adapters.Dynamo.BucketQueryRepository,
   accumulators_command_repository: MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.AccumulatorsCommandRepository
 
-
-config :junit_formatter,
-  report_dir: "_build/release",
-  automatic_create_dir?: true,
-  report_file: "test-junit-report.xml"
+# Nota: se eliminó la configuración de :junit_formatter porque la dependencia no está incluida.
 
 config :elixir_structure_manager,
   sonar_base_folder: ""
 
 # aws
 config :ex_aws,
+  json_codec: Jason,
   region: "us-east-1",
   access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, {:awscli, "default", 30}, :instance_role],
   secret_access_key: [
@@ -59,3 +57,9 @@ config :ex_aws,
 #  scheme: "http://",
 #  host: "localhost",
 #  port: 4566
+
+# Explicit Dynamo endpoint for local testing
+config :ex_aws, :dynamodb,
+  scheme: "http://",
+  host: "localhost",
+  port: 8000

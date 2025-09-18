@@ -4,7 +4,11 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCaseExtendedTest do
   import Mock
 
   alias MsEvaluateRules.Domain.UseCases.AccumulatorUseCase
-  alias MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.AccumulatorsQueryRepository
+  alias MsEvaluateRules.Infrastructure.Adapters.Repository.Accumulators.{
+    AccumulatorsQueryRepository,
+    Accumulator
+  }
+  alias MsEvaluateRules.Infrastructure.Adapters.Dynamo.BucketQueryRepository
 
   setup do
     :ok
@@ -23,11 +27,20 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCaseExtendedTest do
     typed = %{"user_id" => 1}
     raw = %{"user_id" => 1}
 
+    defn_n = %Accumulator{id: Ecto.UUID.generate(), name: "n7", status: :active, bucket_gran: :day, dimensions: ["user_id"]}
+    defn_d = %Accumulator{id: Ecto.UUID.generate(), name: "d7", status: :active, bucket_gran: :day, dimensions: ["user_id"]}
+
     with_mocks [
       {AccumulatorsQueryRepository, [], [
-        read: fn
-          "n7", %{"user_id" => 1}, %{window: "7d"} -> Decimal.new(10)
-          "d7", %{"user_id" => 1}, %{window: "7d"} -> Decimal.new(0)
+        get_accumulator_definition: fn
+          "n7" -> {:ok, defn_n}
+          "d7" -> {:ok, defn_d}
+        end
+      ]},
+      {BucketQueryRepository, [], [
+        sum_window: fn
+          ^defn_n, _key_hash, _ref -> 10.0
+          ^defn_d, _key_hash, _ref -> 0.0
         end
       ]}
     ] do
@@ -49,11 +62,20 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCaseExtendedTest do
     typed = %{"user_id" => 1}
     raw = %{"user_id" => 1}
 
+    defn_n = %Accumulator{id: Ecto.UUID.generate(), name: "n7", status: :active, bucket_gran: :day, dimensions: ["user_id"]}
+    defn_d = %Accumulator{id: Ecto.UUID.generate(), name: "d7", status: :active, bucket_gran: :day, dimensions: ["user_id"]}
+
     with_mocks [
       {AccumulatorsQueryRepository, [], [
-        read: fn
-          "n7", %{"user_id" => 1}, %{window: "7d"} -> Decimal.new(10)
-          "d7", %{"user_id" => 1}, %{window: "7d"} -> Decimal.new(2)
+        get_accumulator_definition: fn
+          "n7" -> {:ok, defn_n}
+          "d7" -> {:ok, defn_d}
+        end
+      ]},
+      {BucketQueryRepository, [], [
+        sum_window: fn
+          ^defn_n, _key_hash, _ref -> 10.0
+          ^defn_d, _key_hash, _ref -> 2.0
         end
       ]}
     ] do
@@ -74,12 +96,18 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCaseExtendedTest do
     typed = %{"user_id" => 1}
     raw = %{"user_id" => 1}
 
+    defn = %Accumulator{id: Ecto.UUID.generate(), name: "sum1h", status: :active, bucket_gran: :day, dimensions: ["user_id"]}
+
     with_mocks [
       {AccumulatorsQueryRepository, [], [
-        read_rate: fn "sum1h", %{"user_id" => 1}, %{window: "1h", per: :minute} -> Decimal.new(6) end
+        get_accumulator_definition: fn "sum1h" -> {:ok, defn} end
+      ]},
+      {BucketQueryRepository, [], [
+        sum_window: fn ^defn, _key_hash, _ref -> 360.0 end
       ]}
     ] do
       out = AccumulatorUseCase.enrich_with_accs(typed, field_defs, raw)
+      # 360 over 1h => per minute 6.0
       assert out["rate1"] == 6.0
     end
   end
@@ -93,10 +121,14 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCaseExtendedTest do
     typed = %{"user_id" => 1}
     raw = %{"user_id" => 1}
 
+    defn = %Accumulator{id: Ecto.UUID.generate(), name: "m", status: :active, bucket_gran: :day, dimensions: ["user_id"]}
+
     with_mocks [
       {AccumulatorsQueryRepository, [], [
-        read_max: fn "m", %{"user_id" => 1}, %{window: "1d"} -> Decimal.new(9) end,
-        read_min: fn "m", %{"user_id" => 1}, %{window: "1d"} -> Decimal.new(1) end
+        get_accumulator_definition: fn "m" -> {:ok, defn} end
+      ]},
+      {BucketQueryRepository, [], [
+        extreme_window: fn ^defn, _key_hash, _ref, which -> if(which == :max, do: 9.0, else: 1.0) end
       ]}
     ] do
       out = AccumulatorUseCase.enrich_with_accs(typed, field_defs, raw)
@@ -117,9 +149,14 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCaseExtendedTest do
     typed = %{"user_id" => 1, "country" => "CO"}
     raw = typed
 
+    defn = %Accumulator{id: Ecto.UUID.generate(), name: "ev", status: :active, bucket_gran: :day, dimensions: ["user_id", "country"]}
+
     with_mocks [
       {AccumulatorsQueryRepository, [], [
-        read_time_since_last: fn "ev", %{"user_id" => 1, "country" => "CO"} -> :infinite end
+        get_accumulator_definition: fn "ev" -> {:ok, defn} end
+      ]},
+      {BucketQueryRepository, [], [
+        time_since_last: fn _acc_id, _key_hash -> :infinite end
       ]}
     ] do
       out = AccumulatorUseCase.enrich_with_accs(typed, field_defs, raw)
@@ -128,7 +165,10 @@ defmodule MsEvaluateRules.Domain.UseCases.AccumulatorUseCaseExtendedTest do
 
     with_mocks [
       {AccumulatorsQueryRepository, [], [
-        read_time_since_last: fn "ev", %{"user_id" => 1, "country" => "CO"} -> 42 end
+        get_accumulator_definition: fn "ev" -> {:ok, defn} end
+      ]},
+      {BucketQueryRepository, [], [
+        time_since_last: fn _acc_id, _key_hash -> 42 end
       ]}
     ] do
       out = AccumulatorUseCase.enrich_with_accs(typed, field_defs, raw)

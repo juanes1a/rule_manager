@@ -2,14 +2,20 @@ defmodule MsEvaluateRules.Domain.UseCases.TypicalCoercionUtil do
 
   alias Decimal, as: D
 
+  require Logger
+
   def coerce_input(input, field_defs) do
     Enum.reduce(field_defs, %{}, fn {k, %{"type" => t} = cfg}, acc ->
       v = Map.get(input, k)
 
       case coerce(v, t, cfg) do
         {:ok, cv} -> Map.put(acc, k, cv)
-        :missing -> Map.put(acc, k, :__missing__)
-        {:error, _} -> Map.put(acc, k, :__missing__)
+        :missing ->
+          Logger.error("Missing Field: #{k}")
+          Map.put(acc, k, :__missing__)
+        {:error, reason} ->
+          Logger.error("Error on evaluation: #{reason}")
+          Map.put(acc, k, :__missing__)
       end
     end)
   end

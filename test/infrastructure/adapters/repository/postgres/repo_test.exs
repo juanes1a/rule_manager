@@ -1,5 +1,6 @@
 defmodule MsEvaluateRules.Infrastructure.Adapters.Repository.RepoTest do
   use ExUnit.Case, async: true
+  import Mock
 
   alias MsEvaluateRules.Infrastructure.Adapters.Repository.Repo
 
@@ -32,5 +33,20 @@ defmodule MsEvaluateRules.Infrastructure.Adapters.Repository.RepoTest do
     assert Keyword.get(cfg, :port) == 5432
     assert Keyword.get(cfg, :hostname) == "localhost"
   end
-end
 
+  test "health/0 returns {:ok, true} on successful query" do
+    with_mock Postgrex, query: fn _, _, _ -> {:ok, %{}} end do
+      assert {:ok, true} == Repo.health()
+    end
+  end
+
+  test "health/0 returns :error on error and on DBConnection.ConnectionError" do
+    with_mock Postgrex, query: fn _, _, _ -> {:error, :boom} end do
+      assert :error == Repo.health()
+    end
+
+    with_mock Postgrex, query: fn _, _, _ -> raise DBConnection.ConnectionError end do
+      assert :error == Repo.health()
+    end
+  end
+end

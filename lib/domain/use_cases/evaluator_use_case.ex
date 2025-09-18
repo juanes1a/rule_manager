@@ -23,7 +23,7 @@ defmodule MsEvaluateRules.Domain.UseCases.EvaluatorUseCase do
          bundle <- CompilerUseCase.compile(result),
          field_defs <- bundle.config.field_defs || %{},
          typed0 <- coerce_input(input, bundle.config[:field_defs] || %{}),
-         typed <- AccumulatorUseCase.enrich_with_accs(typed0, field_defs, input) |> IO.inspect(),
+         typed <- AccumulatorUseCase.enrich_with_accs(typed0, field_defs, input),
          evaluation <- do_eval(bundle, typed, opts) do
       {:ok, evaluation}
     else
@@ -33,9 +33,9 @@ defmodule MsEvaluateRules.Domain.UseCases.EvaluatorUseCase do
     end
   end
 
-  defp do_eval(%{rules: rules, config: cfg, version: ver}, input, _opts) do
+  defp do_eval(%{rules: rules, config: configuration, version: version}, input, _opts) do
     {acc, matched} =
-      Enum.reduce_while(rules, init_acc(cfg), fn rule, {acc0, matched0} ->
+      Enum.reduce_while(rules, init_acc(configuration), fn rule, {acc0, matched0} ->
         if rule.enabled && cond_true?(rule.condition, input) do
           acc1 = apply_effects(acc0, rule.effects)
           matched1 = [rule.name | matched0]
@@ -50,8 +50,8 @@ defmodule MsEvaluateRules.Domain.UseCases.EvaluatorUseCase do
         end
       end)
 
-    result = map_output(acc, cfg)
-    Map.merge(result, %{matched_rules: Enum.reverse(matched), version: ver})
+    result = map_output(acc, configuration)
+    Map.merge(result, %{matched_rules: Enum.reverse(matched), version: version})
   end
 
   # === Acumulador ===
@@ -63,11 +63,11 @@ defmodule MsEvaluateRules.Domain.UseCases.EvaluatorUseCase do
   defp cond_true?(%{"all" => list}, input), do: Enum.all?(list, &cond_true?(&1, input))
   defp cond_true?(%{"any" => list}, input), do: Enum.any?(list, &cond_true?(&1, input))
 
-  defp cond_true?(%{"field" => f, "op" => op, "type" => t} = p, input) do
-    left = Map.get(input, f, :__missing__)
+  defp cond_true?(%{"field" => field, "op" => operation, "type" => data_type} = p, input) do
+    left = Map.get(input, field, :__missing__)
     right_raw = Map.get(p, "value")
-    right = value_or_fn(right_raw, t)
-    compare(left, op, right, t)
+    right = value_or_fn(right_raw, data_type)
+    compare(left, operation, right, data_type)
   end
 
   # === Valores dinámicos / funciones ===

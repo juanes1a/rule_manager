@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: #{service}#
+  namespace: #{namespace}#
+  labels:
+    app.bancolombia.com.co/env: #{env}#
+    app.bancolombia.com.co/cost-center: #{cost-center}#
+    app.bancolombia.com.co/application-code: #{application-code}#
+    app.bancolombia.com.co/project: #{project-name}#
+    app.bancolombia.com.co/pmo: #{pmo}#
+spec:
+  selector:
+    app: #{project-name}#
+    pod: #{service}#-pod
+  ports:
+    - name: http
+      targetPort: #{container-port}#
+      port: 80
+    - name: http-metrics
+      targetPort: 9568
+      port: 9568
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: #{service}#-deployment
+  namespace: #{namespace}#
+  labels:
+    app.bancolombia.com.co/env: #{env}#
+    app.bancolombia.com.co/cost-center: #{cost-center}#
+    app.bancolombia.com.co/application-code: #{application-code}#
+    app.bancolombia.com.co/project: #{project-name}#
+    app.bancolombia.com.co/pmo: #{pmo}#
+    app.bancolombia.com.co/responsible: #{responsible}#
+spec:
+  replicas: #{ms-replicas}#
+  selector:
+    matchLabels:
+      pod: #{service}#-pod
+  template:
+    metadata:
+      labels:
+        app: #{project-name}#
+        pod: #{service}#-pod
+        app.bancolombia.com.co/project: #{project-name}#
+        version: version.#{version}#
+      annotations:
+        sidecar.opentelemetry.io/inject: "true" # agregar esta anotación
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: #{service-account-name}#
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: #{elixir_1.17_alpine-uid}#
+        runAsGroup: #{elixir_1.17_alpine-gid}#
+        fsGroup: #{elixir_1.17_alpine-gid}#
+      containers:
+        - name: #{service}#-container
+          image: #{image}#
+          envFrom:
+            - configMapRef:
+                name: #{service}#-configmap
+          env:
+            - name: OTEL_RESOURCE_ATTRIBUTES # agregar esta variable de ambiente
+              value: service.name=#{service}#-deployment.#{namespace}#,service.version=#{Build.SourceVersion}#,deployment.environment=#{env}#,app=#{service}#-deployment
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              scheme: HTTP
+              port: #{container-port}#
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              scheme: HTTP
+              port: #{container-port}#
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /api/health
+              scheme: HTTP
+              port: #{container-port}#
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: '#{memory-request}#Mi'
+              cpu: '#{cpu-request}#m'
+            limits:
+              memory: '#{memory-limits}#Mi'
+              cpu: '#{cpu-limits}#m'
+          ports:
+            - containerPort: #{container-port}#
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - all
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              pod: #{service}#-pod
